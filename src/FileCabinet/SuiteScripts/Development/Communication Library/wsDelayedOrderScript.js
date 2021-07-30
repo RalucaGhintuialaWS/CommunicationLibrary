@@ -69,9 +69,10 @@ define(['N/runtime', 'N/search', 'N/render', 'N/email', 'N/record'],
                 emailBody = emailBody.replace("track_order_link", orderTrackingLink );
                 var itemString = "";
                 orderDetails.map(item => {
-                    itemString=itemString+  `  <div> <div style="display: flex; margin-bottom: 25px; font-size:15px;"> <div style="margin-left: 10px; line-height: 1.2; text-align: start; flex: 100%;"> <div>${item.itemDesc}</div> <div style="font-weight: bold; padding-top: 10px; font-size:12px;">Quantity: ${item.qty}</div> <div> <img src= ${item.itemImage}/></div> </div> </div> <table border="0" cellpadding="0" cellspacing="0" class="divider" role="presentation" style=" table-layout: fixed; vertical-align: top; border-spacing: 0; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; min-width: 100%; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; " valign="top" width="100%"> <tbody> <tr style="vertical-align: top" valign="top"> <td class="divider_inner" style=" word-break: break-word; vertical-align: top; min-width: 100%; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; padding-top: 10px; padding-right: 10px; padding-bottom: 10px; padding-left: 10px; " valign="top"> <table align="center" border="0" cellpadding="0" cellspacing="0" class="divider_content" height="1" role="presentation" style=" table-layout: fixed; vertical-align: top; border-spacing: 0; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; border-top: 2px solid #F5F5F5; height: 1px; width: 95%; " valign="top" width="95%"> <tbody> <tr style="vertical-align: top" valign="top"> <td height="1" style=" word-break: break-word; vertical-align: top; -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; " valign="top">&nbsp;</td> </tr> </tbody> </table> </td> </tr> </tbody> </table> </div>    `;
+                    itemString=itemString+  ` <div><table style=" margin-bottom: 25px; font-size:15px; max-width: 100%;"> <tr> <th style=" width: 20% ; margin-left: 10px; text-align: start; height: auto; "> <!--[if gte MSO 9]> <table width="640"> <tr> <td><![endif]--><table width="100%" style="max-width:100px"> <tr> <td> <img src=${item.itemImage} width="100%" /> </td> </tr> </table><!--[if gte MSO 9]> </td> </tr> </table><![endif]--> </th> <th style=" width: 7% ; text-align: center; height: auto; "><p style=" margin-top:0; font-size:11.5px ;"> ${item.qty}</p></th> <th style=" width: 13% ; margin-left: 10px; text-align: center; height: auto; "><p style=" margin-top:0; font-size: 11.5px;">${item.itemCode}</p></th> <th style=" width: 40% ; margin-left: 10px; text-align: center; height: auto; "><p style=" margin-top:0; font-size: 11.5px;"> ${item.itemDesc}</p></th> <th style=" width: 20% ; margin-left: 10px; text-align: center; height: auto; "> <p style=" font-size:12px; margin: 0;"> ${item.status}</p><p style="font-weight: bold; ; font-size:10px; margin: 0;">Due in stock approx. ${item.expectedDate}</p> </th> </tr></table> </div> `;
                 });
-                emailBody = emailBody.replace("test_string", itemString);
+
+                emailBody = emailBody.replace("itemLine", itemString);
                 //log.debug('Email Body', emailBody);
 
                 var senderId = 129;
@@ -104,9 +105,7 @@ define(['N/runtime', 'N/search', 'N/render', 'N/email', 'N/record'],
                         "AND",
                         ["transaction.mainline","is","T"],
                         "AND",
-                        ["transaction.status","anyof","SalesOrd:B","SalesOrd:D"],
-                        "AND",
-                        ["transaction.internalidnumber","equalto","10826087"]
+                        ["transaction.status","anyof","SalesOrd:B","SalesOrd:D"]
                     ],
                 columns:
                     [
@@ -125,7 +124,8 @@ define(['N/runtime', 'N/search', 'N/render', 'N/email', 'N/record'],
                 search.createColumn({ name: 'itemid', join: 'item' }),
                 search.createColumn({ name: 'quantity' }),
                 search.createColumn({ name: 'salesdescription', join: 'item' }),
-                search.createColumn({ name: 'custitem_magento_image', join: 'item' })
+                search.createColumn({ name: 'custitem_magento_image', join: 'item' }),
+                search.createColumn({ name: 'custcol_expected_delivered_by_date' })
             ];
 
             let itemSearch = search.create({
@@ -150,11 +150,18 @@ define(['N/runtime', 'N/search', 'N/render', 'N/email', 'N/record'],
             pageData.pageRanges.forEach((pageRange) => {
                 let page = pageData.fetch({ index: pageRange.index });
                 page.data.forEach((item) => {
+                    var itemStatus = "In Stock";
+                    var locateDate = item.getValue(columns[4]);
+                    locateDate = locateDate.toLocaleString().split("-").reverse().join("/")
+                    if (item.getValue(columns[4]) > Date.now() ) itemStatus = "Pre Order";
+
                     let newResult = {
                         itemCode: item.getValue(columns[0]),
                         qty: item.getValue(columns[1]),
                         itemDesc: item.getValue(columns[2]),
                         itemImage: item.getText(columns[3]),
+                        expectedDate: locateDate,
+                        status: itemStatus
                     };
 
                     if (newResult.itemImage !== '') {
